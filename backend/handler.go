@@ -22,9 +22,9 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	words := threewords.ThreeWords{
-		strings.TrimSpace(r.PostForm["word0"][0]),
-		strings.TrimSpace(r.PostForm["word1"][0]),
-		strings.TrimSpace(r.PostForm["word2"][0]),
+		strings.TrimSpace(r.PostFormValue("word0")),
+		strings.TrimSpace(r.PostFormValue("word1")),
+		strings.TrimSpace(r.PostFormValue("word2")),
 	}
 
 	if !threewords.Validate(words) {
@@ -71,6 +71,8 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%v\"", originalName))
 	w.Write(fileBytes)
+
+	log.Printf("[INFO] Threewords %v accessed!\n", words)
 }
 
 // UploadHandler handles /upload API.
@@ -124,4 +126,6 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprint(w, words)
+
+	log.Printf("[INFO] File %v uploaded!\n", originalName)
 }
