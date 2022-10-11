@@ -54,12 +54,12 @@
                     if (response.ok) {
                         response.text().then(text => {
                             document.getElementById("upload_words").innerText = text;
-                        })
+                        }).catch(console.log);
                     } else {
-                        response.text.then(alert);
+                        response.text.then(alert).catch(console.log);;
                     }
                 })
-                .catch(err => console.log(err))
+                .catch(console.log)
                 .finally(_ => {
                     button.ariaBusy = "false";
                     file_input.disabled = false;
@@ -88,14 +88,15 @@
                                 const link = document.getElementById("download_link")
 
                                 link.href = url;
+                                link.download = file.name;
                                 link.click();
                                 URL.revokeObjectURL(url);
-                            })
+                            }).catch(console.log);
                     } else {
-                        response.text().then(alert);
+                        response.text().then(alert).catch(console.log);
                     }
                 })
-                .catch(err => console.log(err))
+                .catch(console.log)
                 .finally(_ => {
                     button.ariaBusy = "false";
                 });
