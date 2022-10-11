@@ -37,9 +37,14 @@
     <script>
         function upload() {
             let button = document.getElementById("upload_button");
-            let file_input = document.getElementById("upload")
+            let file_input = document.getElementById("upload");
             let file = file_input.files[0];
             let formData = new FormData();
+
+            if (file.size >= 100 * (1 << 20)) {
+                alert("파일 사이즈가 너무 큽니다! 100MB까지 지원합니다.");
+                return;
+            }
 
             button.ariaBusy = "true";
             file_input.disabled = true;
@@ -51,6 +56,7 @@
                         document.getElementById("upload_words").innerText = response[1];
                     } else {
                         alert(response[1]);
+                        document.getElementById("upload_words").innerText = "";
                     }
                 })
                 .catch(err => console.log(err))

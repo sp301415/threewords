@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const MAX_UPLOAD_SIZE = 500 * 1024 * 1024 // 500 MB
 const STORE_DIR = "files"
 
 // DownloadHandler handles /download API.
@@ -85,13 +84,6 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, "HTML Form을 파싱할 수 없습니다.")
 		log.Printf("[ERROR] FormFile error: %v\n", err)
-		return
-	}
-
-	if r.ContentLength > MAX_UPLOAD_SIZE {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "파일 크기가 너무 큽니다! 현재는 500MB까지 업로드할 수 있습니다.")
-		log.Printf("[ERROR] File size too large: %v\n", r.ContentLength)
 		return
 	}
 
