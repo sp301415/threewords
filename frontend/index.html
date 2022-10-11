@@ -88,7 +88,7 @@
                                 const link = document.getElementById("download_link")
 
                                 link.href = url;
-                                link.download = file.name;
+                                link.download = decodeURIComponent(escape(atob(file.name)));
                                 link.click();
                                 URL.revokeObjectURL(url);
                             }).catch(console.log);

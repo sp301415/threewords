@@ -56,7 +56,7 @@ func main() {
 	go func() {
 		for t := range expireTicker.C {
 			log.Printf("[INFO] Garbage collected at %v", t)
-			expire()
+			Expire()
 		}
 	}()
 

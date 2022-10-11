@@ -2,7 +2,8 @@ package main
 
 import "os"
 
-func expire() {
+// Expire collects garbage every 24 hours.
+func Expire() {
 	rows, _ := CheckExpireQuery.Query()
 
 	tx, _ := DB.Begin()

@@ -127,7 +127,7 @@ func DownloadHandler(c *gin.Context) {
 	// Send as multipart/form-encoded
 	var formResponse bytes.Buffer
 	formWriter := multipart.NewWriter(&formResponse)
-	fileWriter, _ := formWriter.CreateFormFile("file", string(originalName))
+	fileWriter, _ := formWriter.CreateFormFile("file", base64.StdEncoding.EncodeToString(originalName))
 	fileWriter.Write(fileBytes)
 	formWriter.Close()
 
