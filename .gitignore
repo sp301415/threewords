@@ -46,3 +46,5 @@
 
 # Go workspace file
 go.work
+
+backend/files/*
