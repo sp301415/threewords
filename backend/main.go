@@ -11,11 +11,6 @@ import (
 
 var DB *sql.DB
 
-var DownloadQuery *sql.Stmt
-var UploadQuery *sql.Stmt
-var CheckExpireQuery *sql.Stmt
-var ExpireQuery *sql.Stmt
-
 // Initialize DB Connection
 func init() {
 	var err error
@@ -23,33 +18,9 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-
-	DownloadQuery, err = DB.Prepare("SELECT Path, OriginalName FROM files WHERE ID = ?")
-	if err != nil {
-		panic(err)
-	}
-
-	UploadQuery, err = DB.Prepare("INSERT INTO files VALUES (?, ?, ?, NOW() + INTERVAL 24 HOUR)")
-	if err != nil {
-		panic(err)
-	}
-
-	CheckExpireQuery, err = DB.Prepare("SELECT ID, Path FROM files WHERE ExpireDate < NOW()")
-	if err != nil {
-		panic(err)
-	}
-
-	ExpireQuery, err = DB.Prepare("DELETE FROM files WHERE ID = ?")
-	if err != nil {
-		panic(err)
-	}
 }
 
 func main() {
-	defer DownloadQuery.Close()
-	defer UploadQuery.Close()
-	defer CheckExpireQuery.Close()
-	defer ExpireQuery.Close()
 	defer DB.Close()
 
 	expireTicker := time.NewTicker(24 * time.Hour)

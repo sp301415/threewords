@@ -27,8 +27,21 @@ func UploadHandler(c *gin.Context) {
 	// Set CORS header
 	c.Header("Access-Control-Allow-Origin", "https://threewords.sp301415.com")
 
-	// Create threeword
-	words := threewords.Generate()
+	// Create unique threeword
+	var words threewords.ThreeWords
+	for {
+		words = threewords.Generate()
+
+		rows, err := DB.Query("SELECT * FROM files WHERE ID = ?", words.ID())
+		if err != nil {
+			c.String(http.StatusInternalServerError, dbError)
+			return
+		}
+
+		if !rows.Next() {
+			break
+		}
+	}
 
 	// Read uploaded file
 	fileHeader, err := c.FormFile("upload")
@@ -65,15 +78,16 @@ func UploadHandler(c *gin.Context) {
 		c.String(http.StatusInternalServerError, encryptionError)
 		return
 	}
+	encryptedNameBase64 := base64.StdEncoding.EncodeToString(encryptedName)
 
 	// Write to database
-	_, err = UploadQuery.Exec(words.ID(), filePath, base64.StdEncoding.EncodeToString(encryptedName))
+	_, err = DB.Exec("INSERT INTO files VALUES (?, ?, ?, NOW() + INTERVAL 24 HOUR)", words.ID(), filePath, encryptedNameBase64)
 	if err != nil {
 		c.String(http.StatusInternalServerError, dbError)
 		return
 	}
 
-	c.String(http.StatusOK, "%v", words)
+	c.String(http.StatusOK, words.String())
 }
 
 // DownloadHandler handles /donwload API.
@@ -96,7 +110,7 @@ func DownloadHandler(c *gin.Context) {
 	}
 
 	// Read from database
-	row, err := DownloadQuery.Query(words.ID())
+	row, err := DB.Query("SELECT Path, OriginalName FROM files WHERE ID = ?", words.ID())
 	if err != nil {
 		c.String(http.StatusInternalServerError, dbError)
 		return
@@ -124,7 +138,7 @@ func DownloadHandler(c *gin.Context) {
 		return
 	}
 
-	// Send as multipart/form-encoded
+	// Send as multipart/form-data
 	var formResponse bytes.Buffer
 	formWriter := multipart.NewWriter(&formResponse)
 	fileWriter, _ := formWriter.CreateFormFile("file", base64.StdEncoding.EncodeToString(originalName))
