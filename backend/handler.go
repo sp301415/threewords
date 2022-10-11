@@ -19,7 +19,13 @@ const STORE_DIR = "files"
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "https://threewords.sp301415.com")
 
-	r.ParseForm()
+	err := r.ParseForm()
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "HTML Form을 파싱할 수 없습니다.")
+		log.Printf("[ERROR] FormFile error: %v\n", err)
+		return
+	}
 
 	words := threewords.ThreeWords{
 		strings.TrimSpace(r.PostFormValue("word0")),
