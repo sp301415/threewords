@@ -37,10 +37,12 @@
     <script>
         function upload() {
             let button = document.getElementById("upload_button");
-            let file = document.getElementById("upload").files[0];
+            let file_input = document.getElementById("upload")
+            let file = file_input.files[0];
             let formData = new FormData();
 
             button.ariaBusy = "true";
+            file_input.disabled = true;
             formData.append("upload", file);
             fetch('https://threewords-api.sp301415.com/upload', { method: "POST", body: formData })
                 .then(response => Promise.all([response.ok, response.text()]))
@@ -52,7 +54,10 @@
                     }
                 })
                 .catch(err => console.log(err))
-                .finally(_ => { button.ariaBusy = "false"; });
+                .finally(_ => {
+                    button.ariaBusy = "false";
+                    file_input.disabled = false;
+                });
         }
     </script>
 </head>
@@ -64,7 +69,6 @@
             <div class="grid">
                 <div>
                     <h2>보내요</h2>
-                    <!-- <button class="outline" id="drag-and-drop">끌어다 놓기</button> -->
                     <input type="file" id="upload" name="upload">
                     <button onclick="upload()" id="upload_button">보내기</button>
                     <hr>
