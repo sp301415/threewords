@@ -5,9 +5,11 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"io"
+	"os"
 )
 
-func encryptFile(pt []byte, key [32]byte) ([]byte, error) {
+// encryptBytes encrypts pt with key using AES-GCM.
+func encryptBytes(pt []byte, key [32]byte) ([]byte, error) {
 	block, err := aes.NewCipher(key[:])
 	if err != nil {
 		return nil, err
@@ -27,7 +29,8 @@ func encryptFile(pt []byte, key [32]byte) ([]byte, error) {
 	return AESGCM.Seal(nonce, nonce, pt, nil), nil
 }
 
-func decryptFile(ct []byte, key [32]byte) ([]byte, error) {
+// decryptBytes decrypts ct with key using AES-GCM.
+func decryptBytes(ct []byte, key [32]byte) ([]byte, error) {
 	block, err := aes.NewCipher(key[:])
 	if err != nil {
 		return nil, err
@@ -40,4 +43,24 @@ func decryptFile(ct []byte, key [32]byte) ([]byte, error) {
 
 	nonce, ct := ct[:AESGCM.NonceSize()], ct[AESGCM.NonceSize():]
 	return AESGCM.Open(nil, nonce, ct, nil)
+}
+
+// encryptAndWrite encrypts the data with key, and writes it to path.
+func encryptAndWrite(data []byte, key [32]byte, path string) error {
+	encryptedBytes, err := encryptBytes(data, key)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, encryptedBytes, 0644)
+}
+
+// readAndDecrypt opens the file in path, and decrypts it with key.
+func readAndDecrypt(key [32]byte, path string) ([]byte, error) {
+	encryptedBytes, err := os.ReadFile(path)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return decryptBytes(encryptedBytes, key)
 }

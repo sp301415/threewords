@@ -1,137 +1,135 @@
 package main
 
 import (
-	"fmt"
+	"bytes"
+	"encoding/base64"
 	"io"
-	"log"
+	"mime/multipart"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"threewords/threewords"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-const STORE_DIR = "files"
+const STORE_BASE_DIR = "files"
 
-// DownloadHandler handles /download API.
-func DownloadHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "https://threewords.sp301415.com")
+var fileError = "파일을 읽거나 쓸 수 없습니다."
+var encryptionError = "암호화/복호화하는 도중 문제가 생겼습니다."
+var dbError = "데이터베이스를 처리하는 도중 문제가 생겼습니다."
+var keyError = "해당 키는 잘못되었거나 존재하지 않습니다."
 
-	err := r.ParseForm()
+// UploadHandler handles /upload API.
+// It mainly reads the file uploaded via multipart-form, and saves the encrypted file, and assigns new threeword.
+func UploadHandler(c *gin.Context) {
+	// Set CORS header
+	c.Header("Access-Control-Allow-Origin", "https://threewords.sp301415.com")
+
+	// Create threeword
+	words := threewords.Generate()
+
+	// Read uploaded file
+	fileHeader, err := c.FormFile("upload")
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "HTML Form을 파싱할 수 없습니다.")
-		log.Printf("[ERROR] FormFile error: %v\n", err)
+		c.String(http.StatusBadRequest, fileError)
 		return
 	}
 
+	file, err := fileHeader.Open()
+	if err != nil {
+		c.String(http.StatusInternalServerError, fileError)
+		return
+	}
+	defer file.Close()
+
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		c.String(http.StatusInternalServerError, fileError)
+		return
+	}
+
+	filePath := filepath.Join(STORE_BASE_DIR, uuid.NewString())
+
+	// Encrypt and write file
+	err = encryptAndWrite(fileBytes, words.Key(), filePath)
+	if err != nil {
+		c.String(http.StatusInternalServerError, encryptionError)
+		return
+	}
+
+	// Encrypt original file name
+	encryptedName, err := encryptBytes([]byte(fileHeader.Filename), words.Key())
+	if err != nil {
+		c.String(http.StatusInternalServerError, encryptionError)
+		return
+	}
+
+	// Write to database
+	_, err = UploadQuery.Exec(words.ID(), filePath, base64.StdEncoding.EncodeToString(encryptedName))
+	if err != nil {
+		c.String(http.StatusInternalServerError, dbError)
+		return
+	}
+
+	c.String(http.StatusOK, "%v", words)
+}
+
+// DownloadHandler handles /donwload API.
+// It validates threeword sent by user, and returns the associated file.
+func DownloadHandler(c *gin.Context) {
+	// Set CORS header
+	c.Header("Access-Control-Allow-Origin", "https://threewords.sp301415.com")
+
+	// Get threeword from user
 	words := threewords.ThreeWords{
-		strings.TrimSpace(r.PostFormValue("word0")),
-		strings.TrimSpace(r.PostFormValue("word1")),
-		strings.TrimSpace(r.PostFormValue("word2")),
+		strings.TrimSpace(c.PostForm("word0")),
+		strings.TrimSpace(c.PostForm("word1")),
+		strings.TrimSpace(c.PostForm("word2")),
 	}
 
+	// Validate threeword
 	if !threewords.Validate(words) {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "잘못된 키입니다.")
-		log.Printf("[ERROR] User requested wrong threewords: %v", words)
+		c.String(http.StatusBadRequest, keyError)
 		return
 	}
 
+	// Read from database
 	row, err := DownloadQuery.Query(words.ID())
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "DB 쿼리를 실행할 수 없습니다.")
-		log.Printf("[ERROR] Cannot run DownloadQuery.Exec: %v\n", err)
+		c.String(http.StatusInternalServerError, dbError)
 		return
 	}
 
 	if !row.Next() {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "키를 찾을 수 없습니다.")
-		log.Printf("[ERROR] Cannot find files associated with threewords %v\n", words)
+		c.String(http.StatusBadRequest, keyError)
 		return
 	}
 
-	var path, originalName string
-	row.Scan(&path, &originalName)
+	var path, encryptedNameBase64 string
+	row.Scan(&path, &encryptedNameBase64)
+	row.Close()
 
-	encryptedBytes, err := os.ReadFile(path)
+	fileBytes, err := readAndDecrypt(words.Key(), path)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "파일을 열 수 없습니다.")
-		log.Printf("[ERROR] Cannot read file: %v\n", err)
+		c.String(http.StatusInternalServerError, encryptionError)
 		return
 	}
 
-	fileBytes, err := decryptFile(encryptedBytes, words.Key())
+	encryptedName, _ := base64.StdEncoding.DecodeString(encryptedNameBase64)
+	originalName, err := decryptBytes(encryptedName, words.Key())
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "파일을 복호화할 수 없습니다.")
-		log.Printf("[ERROR] Cannot decrypt file: %v\n", err)
+		c.String(http.StatusInternalServerError, encryptionError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%v\"", originalName))
-	w.Write(fileBytes)
+	// Send as multipart/form-encoded
+	var formResponse bytes.Buffer
+	formWriter := multipart.NewWriter(&formResponse)
+	fileWriter, _ := formWriter.CreateFormFile("file", string(originalName))
+	fileWriter.Write(fileBytes)
+	formWriter.Close()
 
-	log.Printf("[INFO] Threewords %v accessed!\n", words)
-}
-
-// UploadHandler handles /upload API.
-func UploadHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "https://threewords.sp301415.com")
-
-	words := threewords.Generate()
-
-	uploadedFile, header, err := r.FormFile("upload")
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "HTML Form을 파싱할 수 없습니다.")
-		log.Printf("[ERROR] FormFile error: %v\n", err)
-		return
-	}
-
-	fileName := uuid.NewString()
-	filePath := filepath.Join(STORE_DIR, fileName)
-	originalName := header.Filename
-
-	content, err := io.ReadAll(uploadedFile)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "업로드한 파일을 읽을 수 없습니다.")
-		log.Printf("[ERROR] Cannot read uploaded file: %v\n", err)
-		return
-	}
-
-	encryptedContent, err := encryptFile(content, words.Key())
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "파일을 암호화할 수 없습니다.")
-		log.Printf("[ERROR] Cannot encrypt file: %v\n", err)
-		return
-	}
-
-	err = os.WriteFile(filePath, encryptedContent, 0644)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "파일을 쓸 수 없습니다.")
-		log.Printf("[ERROR] Cannot write file: %v\n", err)
-		return
-	}
-
-	_, err = UploadQuery.Exec(words.ID(), filePath, originalName)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "DB 쿼리를 실행할 수 없습니다.")
-		log.Printf("[ERROR] Cannot run UploadQuery.Exec: %v\n", err)
-		return
-	}
-
-	fmt.Fprint(w, words)
-
-	log.Printf("[INFO] File %v uploaded!\n", originalName)
+	c.Data(http.StatusOK, formWriter.FormDataContentType(), formResponse.Bytes())
 }

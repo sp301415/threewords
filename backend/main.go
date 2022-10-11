@@ -3,9 +3,9 @@ package main
 import (
 	"database/sql"
 	"log"
-	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -13,6 +13,7 @@ var DB *sql.DB
 
 var DownloadQuery *sql.Stmt
 var UploadQuery *sql.Stmt
+var CheckExpireQuery *sql.Stmt
 var ExpireQuery *sql.Stmt
 
 // Initialize DB Connection
@@ -33,7 +34,12 @@ func init() {
 		panic(err)
 	}
 
-	ExpireQuery, err = DB.Prepare("SELECT ID, Path FROM files WHERE ExpireDate < NOW()")
+	CheckExpireQuery, err = DB.Prepare("SELECT ID, Path FROM files WHERE ExpireDate < NOW()")
+	if err != nil {
+		panic(err)
+	}
+
+	ExpireQuery, err = DB.Prepare("DELETE FROM files WHERE ID = ?")
 	if err != nil {
 		panic(err)
 	}
@@ -42,6 +48,7 @@ func init() {
 func main() {
 	defer DownloadQuery.Close()
 	defer UploadQuery.Close()
+	defer CheckExpireQuery.Close()
 	defer ExpireQuery.Close()
 	defer DB.Close()
 
@@ -53,7 +60,13 @@ func main() {
 		}
 	}()
 
-	http.HandleFunc("/download", DownloadHandler)
-	http.HandleFunc("/upload", UploadHandler)
-	http.ListenAndServe(":8000", nil)
+	gin.SetMode(gin.ReleaseMode)
+
+	r := gin.Default()
+	r.SetTrustedProxies([]string{"127.0.0.1"})
+	r.MaxMultipartMemory = 100 * (1 << 20) // 100MB
+
+	r.POST("/upload", UploadHandler)
+	r.POST("/download", DownloadHandler)
+	r.Run(":8000")
 }

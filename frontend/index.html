@@ -42,7 +42,7 @@
             let formData = new FormData();
 
             if (file.size >= 100 * (1 << 20)) {
-                alert("파일 사이즈가 너무 큽니다! 100MB까지 지원합니다.");
+                alert("파일 사이즈가 너무 큽니다! 100MB까지 업로드할 수 있습니다.");
                 return;
             }
 
@@ -50,13 +50,13 @@
             file_input.disabled = true;
             formData.append("upload", file);
             fetch('https://threewords-api.sp301415.com/upload', { method: "POST", body: formData })
-                .then(response => Promise.all([response.ok, response.text()]))
                 .then(response => {
-                    if (response[0]) {
-                        document.getElementById("upload_words").innerText = response[1];
+                    if (response.ok) {
+                        response.text().then(text => {
+                            document.getElementById("upload_words").innerText = text;
+                        })
                     } else {
-                        alert(response[1]);
-                        document.getElementById("upload_words").innerText = "";
+                        response.text.then(alert);
                     }
                 })
                 .catch(err => console.log(err))
@@ -64,6 +64,43 @@
                     button.ariaBusy = "false";
                     file_input.disabled = false;
                 });
+        }
+
+        function download() {
+            let button = document.getElementById("download_button")
+
+            let word0 = document.getElementById("word0").value;
+            let word1 = document.getElementById("word1").value;
+            let word2 = document.getElementById("word2").value;
+            let formData = new FormData();
+
+            button.ariaBusy = "true";
+            formData.append("word0", word0)
+            formData.append("word1", word1)
+            formData.append("word2", word2)
+            fetch("https://threewords-api.sp301415.com/download", { method: "POST", body: formData })
+                .then(response => {
+                    if (response.ok) {
+                        response.formData()
+                            .then(data => data.get("file"))
+                            .then(file => {
+                                const url = URL.createObjectURL(file);
+                                const link = document.getElementById("download_link")
+
+                                link.href = url;
+                                link.click();
+                                URL.revokeObjectURL(url);
+                            })
+                    } else {
+                        response.text().then(alert);
+                    }
+                })
+                .catch(err => console.log(err))
+                .finally(_ => {
+                    button.ariaBusy = "false";
+                });
+
+            return false;
         }
     </script>
 </head>
@@ -77,6 +114,7 @@
                     <h2>보내요</h2>
                     <input type="file" id="upload" name="upload">
                     <button onclick="upload()" id="upload_button">보내기</button>
+                    <small>* 파일은 24시간 뒤 삭제됩니다.</small>
                     <hr>
                     <div>
                         이 파일의 키는...
@@ -85,12 +123,13 @@
                 </div>
                 <div>
                     <h2>받아요</h2>
-                    <form target="_blank" action="https://threewords-api.sp301415.com/download" method="post">
+                    <form target="_self" onsubmit="return download()" method="post">
                         <input type="text" id="word0" name="word0" placeholder="첫번째 단어" required>
                         <input type="text" id="word1" name="word1" placeholder="두번째 단어" required>
                         <input type="text" id="word2" name="word2" placeholder="세번째 단어" required>
-                        <button>받기</button>
+                        <button id="download_button">받기</button>
                     </form>
+                    <a id="download_link" , style="display: none;">제가 보이면 클릭해 보세요 ㅇㅅㅇ</a>
                 </div>
         </article>
     </main>

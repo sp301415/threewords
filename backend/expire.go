@@ -3,15 +3,14 @@ package main
 import "os"
 
 func expire() {
-	rows, _ := ExpireQuery.Query()
+	rows, _ := CheckExpireQuery.Query()
 
-	query, _ := DB.Begin()
+	tx, _ := DB.Begin()
 	for rows.Next() {
 		var ID, path string
 		rows.Scan(&ID, &path)
-
-		query.Exec("DELETE FROM files WHERE ID=?", ID)
+		tx.Stmt(ExpireQuery).Exec(ID)
 		os.Remove(path)
 	}
-	query.Commit()
+	tx.Commit()
 }

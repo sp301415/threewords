@@ -8,7 +8,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"math/big"
 	"os"
 	"strings"
@@ -33,7 +32,7 @@ func init() {
 
 	file, err := os.Open("threewords/words.txt")
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	fileScanner := bufio.NewScanner(file)
