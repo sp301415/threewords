@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/pico.min.css">
+    <style>
+        :root {
+            --grid-spacing-horizontal: 5rem;
+        }
+
+        hr {
+            margin: var(--spacing) 0;
+        }
+
+    </style>
+    <script>
+        function upload() {
+            let button = document.getElementById("upload_button");
+            let file = document.getElementById("upload").files[0];
+            let formData = new FormData();
+
+            button.ariaBusy = "true";
+            formData.append("upload", file);
+            fetch('https://threewords-api.sp301415.com/upload', { method: "POST", body: formData })
+                .then(response => Promise.all([response.ok, response.text()]))
+                .then(response => {
+                    if (response[0]) {
+                        document.getElementById("upload_words").innerText = response[1];
+                    } else {
+                        alert(response[1]);
+                    }
+                })
+                .catch(err => console.log(err))
+                .finally(_ => { button.ariaBusy = "false"; });
+        }
+    </script>
+</head>
+
+<body>
+    <main class="container">
+        <article>
+            <h1>세 단어로...</h1>
+            <div class="grid">
+                <div>
+                    <h2>보내요</h2>
+                    <!-- <button class="outline" id="drag-and-drop">끌어다 놓기</button> -->
+                    <input type="file" id="upload" name="upload">
+                    <button onclick="upload()" id="upload_button">보내기</button>
+                    <hr>
+                    <div>
+                        이 파일의 키는...
+                        <h1 id="upload_words"></h1>
+                    </div>
+                </div>
+                <div>
+                    <h2>받아요</h2>
+                    <form target="_blank" action="https://threewords-api.sp301415.com/download" method="post">
+                        <input type="text" id="word0" name="word0" placeholder="첫번째 단어" required>
+                        <input type="text" id="word1" name="word1" placeholder="두번째 단어" required>
+                        <input type="text" id="word2" name="word2" placeholder="세번째 단어" required>
+                        <button>받기</button>
+                    </form>
+                </div>
+        </article>
+    </main>
+</body>
+
+</html>
