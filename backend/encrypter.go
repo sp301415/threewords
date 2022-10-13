@@ -8,8 +8,8 @@ import (
 	"os"
 )
 
-// encryptBytes encrypts pt with key using AES-GCM.
-func encryptBytes(pt []byte, key [32]byte) ([]byte, error) {
+// EncryptBytes encrypts pt with key using AES-GCM.
+func EncryptBytes(pt []byte, key [32]byte) ([]byte, error) {
 	block, err := aes.NewCipher(key[:])
 	if err != nil {
 		return nil, err
@@ -29,8 +29,8 @@ func encryptBytes(pt []byte, key [32]byte) ([]byte, error) {
 	return AESGCM.Seal(nonce, nonce, pt, nil), nil
 }
 
-// decryptBytes decrypts ct with key using AES-GCM.
-func decryptBytes(ct []byte, key [32]byte) ([]byte, error) {
+// DecryptBytes decrypts ct with key using AES-GCM.
+func DecryptBytes(ct []byte, key [32]byte) ([]byte, error) {
 	block, err := aes.NewCipher(key[:])
 	if err != nil {
 		return nil, err
@@ -45,9 +45,9 @@ func decryptBytes(ct []byte, key [32]byte) ([]byte, error) {
 	return AESGCM.Open(nil, nonce, ct, nil)
 }
 
-// encryptAndWrite encrypts the data with key, and writes it to path.
-func encryptAndWrite(data []byte, key [32]byte, path string) error {
-	encryptedBytes, err := encryptBytes(data, key)
+// EncryptAndWrite encrypts the data with key, and writes it to path.
+func EncryptAndWrite(data []byte, key [32]byte, path string) error {
+	encryptedBytes, err := EncryptBytes(data, key)
 	if err != nil {
 		return err
 	}
@@ -55,12 +55,12 @@ func encryptAndWrite(data []byte, key [32]byte, path string) error {
 	return os.WriteFile(path, encryptedBytes, 0644)
 }
 
-// readAndDecrypt opens the file in path, and decrypts it with key.
-func readAndDecrypt(key [32]byte, path string) ([]byte, error) {
+// ReadAndDecrypt opens the file in path, and decrypts it with key.
+func ReadAndDecrypt(key [32]byte, path string) ([]byte, error) {
 	encryptedBytes, err := os.ReadFile(path)
 	if err != nil {
 		return []byte{}, err
 	}
 
-	return decryptBytes(encryptedBytes, key)
+	return DecryptBytes(encryptedBytes, key)
 }

@@ -2,8 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"log"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
@@ -23,13 +21,7 @@ func init() {
 func main() {
 	defer DB.Close()
 
-	expireTicker := time.NewTicker(24 * time.Hour)
-	go func() {
-		for t := range expireTicker.C {
-			log.Printf("[INFO] Garbage collected at %v", t)
-			Expire()
-		}
-	}()
+	go Expire()
 
 	gin.SetMode(gin.ReleaseMode)
 

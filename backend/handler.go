@@ -66,14 +66,14 @@ func UploadHandler(c *gin.Context) {
 	filePath := filepath.Join(STORE_BASE_DIR, uuid.NewString())
 
 	// Encrypt and write file
-	err = encryptAndWrite(fileBytes, words.Key(), filePath)
+	err = EncryptAndWrite(fileBytes, words.Key(), filePath)
 	if err != nil {
 		c.String(http.StatusInternalServerError, encryptionError)
 		return
 	}
 
 	// Encrypt original file name
-	encryptedName, err := encryptBytes([]byte(fileHeader.Filename), words.Key())
+	encryptedName, err := EncryptBytes([]byte(fileHeader.Filename), words.Key())
 	if err != nil {
 		c.String(http.StatusInternalServerError, encryptionError)
 		return
@@ -81,7 +81,7 @@ func UploadHandler(c *gin.Context) {
 	encryptedNameBase64 := base64.StdEncoding.EncodeToString(encryptedName)
 
 	// Write to database
-	_, err = DB.Exec("INSERT INTO files VALUES (?, ?, ?, NOW() + INTERVAL 24 HOUR)", words.ID(), filePath, encryptedNameBase64)
+	_, err = DB.Exec("INSERT INTO files VALUES (?, ?, ?, NOW() + INTERVAL 1 DAY)", words.ID(), filePath, encryptedNameBase64)
 	if err != nil {
 		c.String(http.StatusInternalServerError, dbError)
 		return
@@ -125,14 +125,14 @@ func DownloadHandler(c *gin.Context) {
 	row.Scan(&path, &encryptedNameBase64)
 	row.Close()
 
-	fileBytes, err := readAndDecrypt(words.Key(), path)
+	fileBytes, err := ReadAndDecrypt(words.Key(), path)
 	if err != nil {
 		c.String(http.StatusInternalServerError, encryptionError)
 		return
 	}
 
 	encryptedName, _ := base64.StdEncoding.DecodeString(encryptedNameBase64)
-	originalName, err := decryptBytes(encryptedName, words.Key())
+	originalName, err := DecryptBytes(encryptedName, words.Key())
 	if err != nil {
 		c.String(http.StatusInternalServerError, encryptionError)
 		return
