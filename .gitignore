@@ -49,3 +49,4 @@ go.work
 
 backend/files/*
 backend/build/*
+backend/threewords/words.txt

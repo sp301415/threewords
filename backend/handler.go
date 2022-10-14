@@ -16,10 +16,12 @@ import (
 
 const STORE_BASE_DIR = "files"
 
-var fileError = "파일을 읽거나 쓸 수 없습니다."
-var encryptionError = "암호화/복호화하는 도중 문제가 생겼습니다."
-var dbError = "데이터베이스를 처리하는 도중 문제가 생겼습니다."
-var keyError = "해당 키는 잘못되었거나 존재하지 않습니다."
+const (
+	fileError       = "파일을 읽거나 쓸 수 없습니다."
+	encryptionError = "암호화/복호화하는 도중 문제가 생겼습니다."
+	dbError         = "데이터베이스를 처리하는 도중 문제가 생겼습니다."
+	keyError        = "해당 키는 잘못되었거나 존재하지 않습니다."
+)
 
 // UploadHandler handles /upload API.
 // It mainly reads the file uploaded via multipart-form, and saves the encrypted file, and assigns new threeword.

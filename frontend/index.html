@@ -103,6 +103,18 @@
 
             return false;
         }
+
+        function parse_threewords(event) {
+            let words = (event.clipboardData || window.clipboardData).getData('text').split(",");
+            if (words.length != 3) {
+                return;
+            }
+
+            event.preventDefault()
+            document.getElementById("word0").value = words[0].trim();
+            document.getElementById("word1").value = words[1].trim();
+            document.getElementById("word2").value = words[2].trim();
+        }
     </script>
 </head>
 
@@ -128,9 +140,9 @@
                 <div>
                     <h2>받아요</h2>
                     <form target="_self" onsubmit="return download()" method="post">
-                        <input type="text" id="word0" name="word0" placeholder="첫번째 단어" required>
-                        <input type="text" id="word1" name="word1" placeholder="두번째 단어" required>
-                        <input type="text" id="word2" name="word2" placeholder="세번째 단어" required>
+                        <input type="text" id="word0" onpaste="parse_threewords(event)" placeholder="첫번째 단어" required>
+                        <input type="text" id="word1" onpaste="parse_threewords(event)" placeholder="두번째 단어" required>
+                        <input type="text" id="word2" onpaste="parse_threewords(event)" placeholder="세번째 단어" required>
                         <button id="download_button">받기</button>
                     </form>
                     <a id="download_link" , style="display: none;">제가 보이면 클릭해 보세요 ㅇㅅㅇ</a>
