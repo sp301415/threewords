@@ -37,6 +37,7 @@ func UploadHandler(c *gin.Context) {
 			c.String(http.StatusInternalServerError, dbError)
 			return
 		}
+		defer rows.Close()
 
 		if !rows.Next() {
 			break
@@ -115,6 +116,7 @@ func DownloadHandler(c *gin.Context) {
 		c.String(http.StatusInternalServerError, dbError)
 		return
 	}
+	defer row.Close()
 
 	if !row.Next() {
 		c.String(http.StatusBadRequest, keyError)
@@ -123,7 +125,6 @@ func DownloadHandler(c *gin.Context) {
 
 	var path, encryptedNameBase64 string
 	row.Scan(&path, &encryptedNameBase64)
-	row.Close()
 
 	fileBytes, err := ReadAndDecrypt(words.Key(), path)
 	if err != nil {
