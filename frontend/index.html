@@ -24,6 +24,9 @@
     <meta property="twitter:title" content="세 단어로 나눠요" />
 
     <link rel="icon" href='favicon.ico' sizes="any">
+    <link rel="icon" type="image/svg+xml" href="favicon/favicon.svg">
+    <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png">
+    <link rel="manifest" href="favicon/manifest.json">
 
     <link rel="stylesheet" href="css/pico.min.css">
     <style>
@@ -70,7 +73,7 @@
         }
 
         function download() {
-            let button = document.getElementById("download_button")
+            let button = document.getElementById("download_button");
 
             let word0 = document.getElementById("word0").value;
             let word1 = document.getElementById("word1").value;
@@ -112,7 +115,7 @@
                 return;
             }
 
-            event.preventDefault()
+            event.preventDefault();
             document.getElementById("word0").value = words[0].trim();
             document.getElementById("word1").value = words[1].trim();
             document.getElementById("word2").value = words[2].trim();
