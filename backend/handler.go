@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/base64"
 	"errors"
@@ -33,14 +32,12 @@ func UploadHandler(c *gin.Context) {
 	// Set CORS header
 	c.Header("Access-Control-Allow-Origin", "https://threewords.sp301415.com")
 
-	q := db.New(DB)
-
 	// Create unique threeword
 	var words threewords.ThreeWords
 	for {
 		words = threewords.Generate()
 
-		_, err := q.CheckID(context.Background(), words.ID())
+		_, err := DB.CheckID(c, words.ID())
 		if errors.Is(err, sql.ErrNoRows) {
 			break
 		} else if err != nil {
@@ -87,7 +84,7 @@ func UploadHandler(c *gin.Context) {
 	encryptedNameBase64 := base64.StdEncoding.EncodeToString(encryptedName)
 
 	// Write to database
-	err = q.CreateEntry(context.Background(), db.CreateEntryParams{
+	err = DB.CreateEntry(c, db.CreateEntryParams{
 		ID:           words.ID(),
 		FilePath:     filePath,
 		OriginalName: encryptedNameBase64,
@@ -106,8 +103,6 @@ func DownloadHandler(c *gin.Context) {
 	// Set CORS header
 	c.Header("Access-Control-Allow-Origin", "https://threewords.sp301415.com")
 
-	q := db.New(DB)
-
 	// Get threeword from user
 	words := threewords.ThreeWords{
 		strings.TrimSpace(c.PostForm("word0")),
@@ -122,7 +117,7 @@ func DownloadHandler(c *gin.Context) {
 	}
 
 	// Read from database
-	row, err := q.ReadEntry(context.Background(), words.ID())
+	row, err := DB.ReadEntry(c, words.ID())
 	if errors.Is(err, sql.ErrNoRows) {
 		c.String(http.StatusBadRequest, keyError)
 		return

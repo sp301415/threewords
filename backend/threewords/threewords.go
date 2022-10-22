@@ -48,7 +48,7 @@ func init() {
 // with cryptographically secure RNG.
 func Generate() ThreeWords {
 	var i0, i1, i2 int
-	for i0 == i1 || i1 == i2 || i2 == i0 {
+	for {
 		i0Big, _ := rand.Int(rand.Reader, wordList.lengthBigInt)
 		i1Big, _ := rand.Int(rand.Reader, wordList.lengthBigInt)
 		i2Big, _ := rand.Int(rand.Reader, wordList.lengthBigInt)
@@ -56,6 +56,10 @@ func Generate() ThreeWords {
 		i0 = int(i0Big.Int64())
 		i1 = int(i1Big.Int64())
 		i2 = int(i2Big.Int64())
+
+		if i0 != i1 && i1 != i2 && i2 != i0 {
+			break
+		}
 	}
 
 	return ThreeWords{wordList.slice[i0], wordList.slice[i1], wordList.slice[i2]}

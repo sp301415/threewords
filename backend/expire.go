@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"os"
-	"threewords/internal/db"
 	"time"
 )
 
@@ -15,9 +14,7 @@ const (
 
 // Expire collects garbage files.
 func Expire() {
-	q := db.New(DB)
-
-	rows, err := q.FindExpiredEntry(context.Background())
+	rows, err := DB.FindExpiredEntry(context.Background())
 	if err != nil {
 		log.Printf(expireDBError, err)
 		return
@@ -25,7 +22,7 @@ func Expire() {
 
 	var cnt int
 	for _, row := range rows {
-		err = q.DeleteEntry(context.Background(), row.ID)
+		err = DB.DeleteEntry(context.Background(), row.ID)
 		if err != nil {
 			log.Printf(expireDBError, err)
 			return

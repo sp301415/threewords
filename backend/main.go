@@ -2,21 +2,23 @@ package main
 
 import (
 	"database/sql"
+	"threewords/internal/db"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var DB *sql.DB
+var DB *db.Queries
 
 // Initialize DB Connection
 func init() {
-	var err error
-	DB, err = sql.Open("sqlite3", "sql/threewords.db")
+	sqlDB, err := sql.Open("sqlite3", "sql/threewords.db")
 	if err != nil {
 		panic(err)
 	}
+
+	DB = db.New(sqlDB)
 }
 
 func main() {
