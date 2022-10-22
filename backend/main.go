@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
@@ -19,9 +20,13 @@ func init() {
 }
 
 func main() {
-	defer DB.Close()
-
-	go Expire()
+	// Run garbage collector every hour.
+	go func() {
+		for {
+			Expire()
+			time.Sleep(time.Hour)
+		}
+	}()
 
 	gin.SetMode(gin.ReleaseMode)
 
