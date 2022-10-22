@@ -2,12 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"database/sql"
 	"encoding/base64"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
 	"strings"
+	"threewords/internal/db"
 	"threewords/threewords"
 
 	"github.com/gin-gonic/gin"
@@ -29,20 +33,19 @@ func UploadHandler(c *gin.Context) {
 	// Set CORS header
 	c.Header("Access-Control-Allow-Origin", "https://threewords.sp301415.com")
 
+	q := db.New(DB)
+
 	// Create unique threeword
 	var words threewords.ThreeWords
 	for {
 		words = threewords.Generate()
 
-		rows, err := DB.Query("SELECT * FROM files WHERE ID = ?", words.ID())
-		if err != nil {
+		_, err := q.CheckID(context.Background(), words.ID())
+		if errors.Is(err, sql.ErrNoRows) {
+			break
+		} else if err != nil {
 			c.String(http.StatusInternalServerError, dbError)
 			return
-		}
-		defer rows.Close()
-
-		if !rows.Next() {
-			break
 		}
 	}
 
@@ -84,7 +87,11 @@ func UploadHandler(c *gin.Context) {
 	encryptedNameBase64 := base64.StdEncoding.EncodeToString(encryptedName)
 
 	// Write to database
-	_, err = DB.Exec("INSERT INTO files VALUES (?, ?, ?, NOW() + INTERVAL 1 DAY)", words.ID(), filePath, encryptedNameBase64)
+	err = q.CreateEntry(context.Background(), db.CreateEntryParams{
+		ID:           words.ID(),
+		FilePath:     filePath,
+		OriginalName: encryptedNameBase64,
+	})
 	if err != nil {
 		c.String(http.StatusInternalServerError, dbError)
 		return
@@ -98,6 +105,8 @@ func UploadHandler(c *gin.Context) {
 func DownloadHandler(c *gin.Context) {
 	// Set CORS header
 	c.Header("Access-Control-Allow-Origin", "https://threewords.sp301415.com")
+
+	q := db.New(DB)
 
 	// Get threeword from user
 	words := threewords.ThreeWords{
@@ -113,29 +122,23 @@ func DownloadHandler(c *gin.Context) {
 	}
 
 	// Read from database
-	row, err := DB.Query("SELECT Path, OriginalName FROM files WHERE ID = ?", words.ID())
-	if err != nil {
+	row, err := q.ReadEntry(context.Background(), words.ID())
+	if errors.Is(err, sql.ErrNoRows) {
+		c.String(http.StatusBadRequest, keyError)
+		return
+	} else if err != nil {
 		c.String(http.StatusInternalServerError, dbError)
 		return
 	}
-	defer row.Close()
-
-	if !row.Next() {
-		c.String(http.StatusBadRequest, keyError)
-		return
-	}
-
-	var path, encryptedNameBase64 string
-	row.Scan(&path, &encryptedNameBase64)
 
 	// Decrypt file and originalName
-	fileBytes, err := ReadAndDecrypt(words.Key(), path)
+	fileBytes, err := ReadAndDecrypt(words.Key(), row.FilePath)
 	if err != nil {
 		c.String(http.StatusInternalServerError, encryptionError)
 		return
 	}
 
-	encryptedName, err := base64.StdEncoding.DecodeString(encryptedNameBase64)
+	encryptedName, err := base64.StdEncoding.DecodeString(row.OriginalName)
 	if err != nil {
 		c.String(http.StatusInternalServerError, fileError)
 		return

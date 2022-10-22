@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var DB *sql.DB
@@ -13,7 +13,7 @@ var DB *sql.DB
 // Initialize DB Connection
 func init() {
 	var err error
-	DB, err = sql.Open("mysql", "root:@tcp(localhost)/threewords")
+	DB, err = sql.Open("sqlite3", "threewords.db")
 	if err != nil {
 		panic(err)
 	}

@@ -1,0 +1,9 @@
+version: 2
+sql:
+  - engine: "sqlite"
+    schema: "sql/schema.sql"
+    queries: "sql/query.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/db"
