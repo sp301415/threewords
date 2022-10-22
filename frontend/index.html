@@ -50,6 +50,7 @@
 
             button.ariaBusy = "true";
             file_input.disabled = true;
+            document.getElementById("upload_words").innerText = "";
             formData.append("upload", file);
             fetch('https://threewords-api.sp301415.com/upload', { method: "POST", body: formData })
                 .then(response => {

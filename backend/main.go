@@ -13,7 +13,7 @@ var DB *sql.DB
 // Initialize DB Connection
 func init() {
 	var err error
-	DB, err = sql.Open("sqlite3", "threewords.db")
+	DB, err = sql.Open("sqlite3", "sql/threewords.db")
 	if err != nil {
 		panic(err)
 	}

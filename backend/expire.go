@@ -20,6 +20,7 @@ func Expire() {
 	rows, err := q.FindExpiredEntry(context.Background())
 	if err != nil {
 		log.Printf(expireDBError, err)
+		return
 	}
 
 	var cnt int
@@ -27,11 +28,13 @@ func Expire() {
 		err = q.DeleteEntry(context.Background(), row.ID)
 		if err != nil {
 			log.Printf(expireDBError, err)
+			return
 		}
 
 		err = os.Remove(row.FilePath)
 		if err != nil {
 			log.Printf(expireFileError, err)
+			return
 		}
 
 		cnt++
