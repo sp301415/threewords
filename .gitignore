@@ -52,3 +52,6 @@ backend/build/*
 backend/threewords/words.txt
 
 backend/sql/*.db
+
+# Local Netlify folder
+.netlify

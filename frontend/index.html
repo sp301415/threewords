@@ -63,9 +63,9 @@
                 .then(response => {
                     if (response.ok) {
                         response.text().then(text => {
-                            key_div.style.display = "none";
+                            key_div.style.display = "";
                             key_words.innerText = text;
-                            let url = `threewords-api.sp301415.com/download/${text}`
+                            let url = `https://threewords-api.sp301415.com/download/${text.replaceAll(", ", "-")}`
                             key_url.innerText = url;
                             key_url.href = url;
                         }).catch(console.log);
@@ -143,9 +143,12 @@
                     <small>* 파일은 24시간 뒤 삭제됩니다.</small>
                     <hr>
                     <div id="key" style="display: none;">
-                        이 파일의 키는
-                        <h1 id="key_words"></h1>
-                        ...아니면 다음 링크를 활용하세요: <a href="" id="key_url"></a>
+                        이 파일의 키는...
+                        <hgroup>
+                            <h1 id="key_words"></h1>
+                            <a href="" id="key_url" style="color: var(--primary);"></a>
+                        </hgroup>
+
                     </div>
                 </div>
                 <div>
