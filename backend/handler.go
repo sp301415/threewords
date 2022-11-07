@@ -3,32 +3,21 @@ package main
 import (
 	"bytes"
 	"database/sql"
-	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
-	"path/filepath"
+	"net/url"
 	"strings"
-	"threewords/internal/db"
 	"threewords/threewords"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
-const STORE_BASE_DIR = "files"
-
-const (
-	fileError       = "파일을 읽거나 쓸 수 없습니다."
-	encryptionError = "암호화/복호화하는 도중 문제가 생겼습니다."
-	dbError         = "데이터베이스를 처리하는 도중 문제가 생겼습니다."
-	keyError        = "해당 키는 잘못되었거나 존재하지 않습니다."
-)
-
-// UploadHandler handles /upload API.
+// UploadPostHandler handles /upload POST API.
 // It mainly reads the file uploaded via multipart-form, and saves the encrypted file, and assigns new threeword.
-func UploadHandler(c *gin.Context) {
+func UploadPostHandler(c *gin.Context) {
 	// Set CORS header
 	c.Header("Access-Control-Allow-Origin", "https://threewords.sp301415.com")
 
@@ -38,10 +27,11 @@ func UploadHandler(c *gin.Context) {
 		words = threewords.Generate()
 
 		_, err := DB.CheckID(c, words.ID())
-		if errors.Is(err, sql.ErrNoRows) {
-			break
-		} else if err != nil {
-			c.String(http.StatusInternalServerError, dbError)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				break
+			}
+			c.String(http.StatusInternalServerError, ErrDBOperation.Error())
 			return
 		}
 	}
@@ -49,57 +39,42 @@ func UploadHandler(c *gin.Context) {
 	// Read uploaded file
 	fileHeader, err := c.FormFile("upload")
 	if err != nil {
-		c.String(http.StatusBadRequest, fileError)
+		c.String(http.StatusBadRequest, ErrFileOperation.Error())
 		return
 	}
 
 	file, err := fileHeader.Open()
 	if err != nil {
-		c.String(http.StatusInternalServerError, fileError)
+		c.String(http.StatusInternalServerError, ErrFileOperation.Error())
 		return
 	}
 	defer file.Close()
 
 	fileBytes, err := io.ReadAll(file)
 	if err != nil {
-		c.String(http.StatusInternalServerError, fileError)
+		c.String(http.StatusInternalServerError, ErrFileOperation.Error())
 		return
 	}
 
-	filePath := filepath.Join(STORE_BASE_DIR, uuid.NewString())
-
-	// Encrypt and write file
-	err = EncryptAndWrite(fileBytes, words.Key(), filePath)
+	err = Add(words, File{Name: fileHeader.Filename, Data: fileBytes})
 	if err != nil {
-		c.String(http.StatusInternalServerError, encryptionError)
-		return
-	}
-
-	// Encrypt original file name
-	encryptedName, err := EncryptBytes([]byte(fileHeader.Filename), words.Key())
-	if err != nil {
-		c.String(http.StatusInternalServerError, encryptionError)
-		return
-	}
-	encryptedNameBase64 := base64.StdEncoding.EncodeToString(encryptedName)
-
-	// Write to database
-	err = DB.CreateEntry(c, db.CreateEntryParams{
-		ID:           words.ID(),
-		FilePath:     filePath,
-		OriginalName: encryptedNameBase64,
-	})
-	if err != nil {
-		c.String(http.StatusInternalServerError, dbError)
+		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	c.String(http.StatusOK, words.String())
 }
 
-// DownloadHandler handles /donwload API.
+// QueryEscape escapes the string so it can be safely placed inside a URL query.
+// The Go stdlib offers url.QueryEscape, but it encodes spaces to `+`; this function fixes it.
+func QueryEscape(s string) string {
+	u := &url.URL{Path: s}
+	return strings.ReplaceAll(u.String(), "+", "%2B")
+}
+
+// DownloadPostHandler handles /download POST API.
 // It validates threeword sent by user, and returns the associated file.
-func DownloadHandler(c *gin.Context) {
+func DownloadPostHandler(c *gin.Context) {
 	// Set CORS header
 	c.Header("Access-Control-Allow-Origin", "https://threewords.sp301415.com")
 
@@ -110,61 +85,50 @@ func DownloadHandler(c *gin.Context) {
 		strings.TrimSpace(c.PostForm("word2")),
 	}
 
-	// Validate threeword
-	if !threewords.Validate(words) {
-		c.String(http.StatusBadRequest, keyError)
-		return
-	}
-
-	// Read from database
-	row, err := DB.ReadEntry(c, words.ID())
-	if errors.Is(err, sql.ErrNoRows) {
-		c.String(http.StatusBadRequest, keyError)
-		return
-	} else if err != nil {
-		c.String(http.StatusInternalServerError, dbError)
-		return
-	}
-
-	// Decrypt file and originalName
-	fileBytes, err := ReadAndDecrypt(words.Key(), row.FilePath)
+	file, err := Get(words)
 	if err != nil {
-		c.String(http.StatusInternalServerError, encryptionError)
-		return
-	}
-
-	encryptedName, err := base64.StdEncoding.DecodeString(row.OriginalName)
-	if err != nil {
-		c.String(http.StatusInternalServerError, fileError)
-		return
-	}
-
-	originalName, err := DecryptBytes(encryptedName, words.Key())
-	if err != nil {
-		c.String(http.StatusInternalServerError, encryptionError)
+		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	// Send as multipart/form-data
 	var formResponse bytes.Buffer
 	formWriter := multipart.NewWriter(&formResponse)
-	fileWriter, err := formWriter.CreateFormFile("file", base64.StdEncoding.EncodeToString(originalName))
+	fileWriter, err := formWriter.CreateFormFile("file", QueryEscape(file.Name))
 	if err != nil {
-		c.String(http.StatusInternalServerError, fileError)
+		c.String(http.StatusInternalServerError, ErrFileOperation.Error())
 		return
 	}
 
-	_, err = fileWriter.Write(fileBytes)
+	_, err = fileWriter.Write(file.Data)
 	if err != nil {
-		c.String(http.StatusInternalServerError, encryptionError)
+		c.String(http.StatusInternalServerError, ErrFileOperation.Error())
 		return
 	}
 
 	err = formWriter.Close()
 	if err != nil {
-		c.String(http.StatusInternalServerError, encryptionError)
+		c.String(http.StatusInternalServerError, ErrFileOperation.Error())
 		return
 	}
 
 	c.Data(http.StatusOK, formWriter.FormDataContentType(), formResponse.Bytes())
+}
+
+// DownloadGetHandler handles POST API of the form /download/%s-%s-%s.
+func DownloadGetHandler(c *gin.Context) {
+	words, ok := threewords.FromString(c.Param("words"))
+	if !ok {
+		c.String(http.StatusBadRequest, ErrKeyNotFound.Error())
+		return
+	}
+
+	file, err := Get(words)
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename*=utf-8''%s", QueryEscape(file.Name)))
+	c.Data(http.StatusOK, "application/octet-stream", file.Data)
 }

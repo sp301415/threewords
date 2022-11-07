@@ -36,7 +36,8 @@ func main() {
 	r.SetTrustedProxies([]string{"127.0.0.1"})
 	r.MaxMultipartMemory = 100 * (1 << 20) // 100MB
 
-	r.POST("/upload", UploadHandler)
-	r.POST("/download", DownloadHandler)
+	r.POST("/upload", UploadPostHandler)
+	r.POST("/download", DownloadPostHandler)
+	r.GET("/download/:words", DownloadGetHandler)
 	r.Run(":8000")
 }

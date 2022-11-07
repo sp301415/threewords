@@ -65,6 +65,20 @@ func Generate() ThreeWords {
 	return ThreeWords{wordList.slice[i0], wordList.slice[i1], wordList.slice[i2]}
 }
 
+// FromString creates new threewords from the string of form `%s-%s-%s`.
+func FromString(s string) (ThreeWords, bool) {
+	w := strings.Split(s, "-")
+	if len(w) != 3 {
+		return ThreeWords{}, false
+	}
+
+	words := ThreeWords{w[0], w[1], w[2]}
+	if !Validate(words) {
+		return ThreeWords{}, false
+	}
+	return words, true
+}
+
 // Validate checks if given ThreeWords is inside wordList.
 func Validate(words ThreeWords) bool {
 	for _, word := range words {
